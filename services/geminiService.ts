@@ -68,7 +68,7 @@ export const analyzeOccurrence = async (
   userExistingControl?: string,
   rasPdfBase64?: string
 ) => {
-  // Inicialização direta conforme diretrizes do SDK para evitar erros de checagem em tempo de execução
+  // Inicialização movida para dentro da função para garantir captura da API_KEY no ambiente hospedado
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
@@ -112,9 +112,9 @@ export const analyzeOccurrence = async (
   } catch (error: any) {
     console.error("Erro na análise Gemini:", error);
     
-    // Tratamento de erro simplificado para o usuário
-    if (error.message?.includes("API_KEY") || error.message?.includes("key")) {
-      throw new Error("Erro de autenticação com o motor de IA. Verifique a validade da chave configurada.");
+    // Se o erro indicar explicitamente falta de chave, damos uma mensagem clara
+    if (error.message?.includes("API Key") || error.message?.includes("API_KEY")) {
+      throw new Error("Erro Crítico: A chave de API não foi propagada corretamente pelo servidor de hospedagem.");
     }
     
     throw new Error(error.message || "Erro inesperado ao processar avaliação de risco.");
