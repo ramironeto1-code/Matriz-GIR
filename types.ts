@@ -40,6 +40,8 @@ export interface AIRiskEntry {
   justification: string;
   probability: 1 | 2 | 3 | 4 | 5; // Nota (A)
   impact: 1 | 2 | 3 | 4 | 5;      // Nota (B)
+  // Added normativeCitation to match schema and UI usage
+  normativeCitation: string;
 }
 
 export interface AIAnalysis {

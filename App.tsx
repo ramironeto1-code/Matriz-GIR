@@ -1,10 +1,10 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { BUSINESS_LINES } from './constants';
-import { Occurrence, BusinessLine, Macroprocess, AIAnalysis, RiskType, DataSnapshot } from './types';
+import { Occurrence, BusinessLine, Macroprocess, AIAnalysis, RiskType } from './types';
 import { analyzeOccurrence } from './services/geminiService';
 import { RiskDashboard } from './components/RiskDashboard';
 import { 
@@ -18,30 +18,31 @@ import {
   Trash2,
   Edit3,
   FileStack,
-  Download,
-  FileUp,
-  Table as TableIcon,
   Cpu,
   RefreshCcw,
   ArchiveRestore,
-  UserCheck,
-  Settings2,
   BrainCircuit,
-  ClipboardCheck,
-  Info,
   ShieldHalf,
-  FileText,
   AlertTriangle,
   X,
-  Save,
   ShieldCheck,
-  Printer,
   RotateCcw,
   Scale,
   FileSpreadsheet,
+  Key,
+  BookOpen,
+  Target,
+  Layers,
+  Wrench,
+  Download,
+  FileUp,
+  UserCheck,
+  ClipboardCheck,
+  Info,
   Activity,
-  Files,
-  HardDrive
+  HardDrive,
+  FileText,
+  Settings
 } from 'lucide-react';
 
 const EFFICACY_REDUCTION_MAP: Record<number, number> = {
@@ -53,40 +54,20 @@ const EFFICACY_REDUCTION_MAP: Record<number, number> = {
 };
 
 const EFFICACY_LABELS: Record<number, string> = {
-  1: 'Inexistente (0%)',
-  2: 'Fraco (20%)',
-  3: 'Médio (50%)',
-  4: 'Forte (80%)',
-  5: 'Excelente (95%)',
+  1: '1 - Inexistente (0%)',
+  2: '2 - Fraco (20%)',
+  3: '3 - Médio (50%)',
+  4: '4 - Forte (80%)',
+  5: '5 - Excelente (95%)',
 };
 
 export const RISK_LEVELS_INFO = [
-  { range: '4,21 -> 5,00', label: 'Muito Alto', color: 'bg-red-600', hex: '#dc2626', rgb: [220, 38, 38], description: 'Riscos críticos com mitigação imediata necessária.' },
-  { range: '3,41 -> 4,20', label: 'Alto', color: 'bg-orange-600', hex: '#ea580c', rgb: [234, 88, 12], description: 'Riscos elevados que exigem plano de ação robusto.' },
-  { range: '2,61 -> 3,40', label: 'Médio', color: 'bg-yellow-400', hex: '#facc15', rgb: [250, 204, 21], description: 'Riscos moderados com necessidade de monitoramento.' },
-  { range: '1,81 -> 2,60', label: 'Baixo', color: 'bg-sky-500', hex: '#0ea5e9', rgb: [14, 165, 233], description: 'Riscos controlados com aceitação residual.' },
-  { range: '1,00 -> 1,80', label: 'Muito Baixo', color: 'bg-emerald-600', hex: '#059669', rgb: [5, 150, 105], description: 'Riscos irrelevantes monitorados periodicamente.' },
+  { range: '4,21 -> 5,00', label: 'Muito Alto', color: 'bg-red-600', hex: '#dc2626', rgb: [220, 38, 38] },
+  { range: '3,41 -> 4,20', label: 'Alto', color: 'bg-orange-600', hex: '#ea580c', rgb: [234, 88, 12] },
+  { range: '2,61 -> 3,40', label: 'Médio', color: 'bg-yellow-400', hex: '#facc15', rgb: [250, 204, 21] },
+  { range: '1,81 -> 2,60', label: 'Baixo', color: 'bg-sky-500', hex: '#0ea5e9', rgb: [14, 165, 233] },
+  { range: '1,00 -> 1,80', label: 'Muito Baixo', color: 'bg-emerald-600', hex: '#059669', rgb: [5, 150, 105] },
 ];
-
-/**
- * Componente de Legenda para os níveis de risco exibidos no dashboard e na matriz.
- */
-export const RiskLegend: React.FC = () => (
-  <div className="bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-xl">
-    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Legenda de Risco Líquido</h4>
-    <div className="space-y-4">
-      {RISK_LEVELS_INFO.map((level, idx) => (
-        <div key={idx} className="flex items-center gap-4 group">
-          <div className={`w-4 h-4 rounded-full ${level.color} shadow-lg group-hover:scale-125 transition-transform`} />
-          <div>
-            <p className="text-[10px] font-black text-slate-200 uppercase">{level.label}</p>
-            <p className="text-[9px] text-slate-500 font-bold">{level.range}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 export const getRiskLevelData = (score: number) => {
   if (score >= 4.21) return { ...RISK_LEVELS_INFO[0], colorClass: RISK_LEVELS_INFO[0].color + ' text-white' };
@@ -101,10 +82,32 @@ export const calculateLiquidRisk = (inherentScore: number, effectiveness: number
   return inherentScore * (1 - reduction);
 };
 
+export const RiskLegend: React.FC = () => (
+  <div className="bg-[#0a0f1d] p-8 rounded-[40px] border border-slate-800 shadow-xl">
+    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 text-center">Legenda de Risco Líquido</h4>
+    <div className="space-y-4">
+      {RISK_LEVELS_INFO.map((level, idx) => (
+        <div key={idx} className="flex items-center gap-4 group">
+          <div className={`w-4 h-4 rounded-full ${level.color} shadow-lg group-hover:scale-125 transition-transform`} />
+          <div>
+            <p className="text-[10px] font-black text-slate-200 uppercase">{level.label}</p>
+            <p className="text-[9px] text-slate-500 font-bold">{level.range}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 export const App: React.FC = () => {
   const [occurrences, setOccurrences] = useState<Occurrence[]>(() => {
-    const saved = localStorage.getItem('gir_occurrences');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('gir_occurrences');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.warn("LocalStorage bloqueado ou inacessível.");
+      return [];
+    }
   });
 
   const [selectedLine, setSelectedLine] = useState<BusinessLine>(BUSINESS_LINES[0]);
@@ -116,19 +119,46 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'matrix' | 'governance'>('dashboard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   
   const [manualProb, setManualProb] = useState<number>(1);
   const [manualImpact, setManualImpact] = useState<number>(1);
-  const [activeSource, setActiveSource] = useState<'ia' | 'unit'>('unit');
   const [tempAnalysis, setTempAnalysis] = useState<AIAnalysis | null>(null);
   const [rasFile, setRasFile] = useState<string | undefined>();
 
   const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('gir_occurrences', JSON.stringify(occurrences));
+    try {
+      localStorage.setItem('gir_occurrences', JSON.stringify(occurrences));
+    } catch (e) {
+      console.error("Erro ao salvar no LocalStorage:", e);
+    }
   }, [occurrences]);
+
+  useEffect(() => {
+    const checkApiKey = async () => {
+      // @ts-ignore
+      if (window.aistudio) {
+        // @ts-ignore
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey || !!process.env.API_KEY);
+      } else {
+        setHasApiKey(!!process.env.API_KEY);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  const handleOpenKeySelector = async () => {
+    // @ts-ignore
+    if (window.aistudio) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true);
+      setApiError(null);
+    }
+  };
 
   const resetForm = () => {
     setDescription(''); 
@@ -137,9 +167,8 @@ export const App: React.FC = () => {
     setSelectedMacro(null); 
     setTempAnalysis(null); 
     setEditingId(null);
-    setManualProb(1); 
-    setManualImpact(1); 
-    setActiveSource('unit'); 
+    setManualProb(1);
+    setManualImpact(1);
     setApiError(null);
     setRasFile(undefined);
   };
@@ -161,7 +190,7 @@ export const App: React.FC = () => {
     setIsAnalyzing(true);
     setApiError(null);
     try {
-      const analysis: AIAnalysis = await analyzeOccurrence(
+      const analysis = await analyzeOccurrence(
         description, 
         selectedMacro.name, 
         selectedLine.name, 
@@ -169,20 +198,18 @@ export const App: React.FC = () => {
         rasFile
       );
       setTempAnalysis(analysis);
-      setActiveSource('ia'); 
     } catch (e: any) { 
       setApiError(e.message);
+      if (e.message?.includes("LIMITE") || e.message?.includes("429") || e.message?.includes("quota")) {
+         setHasApiKey(false);
+      }
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const handleConfirmRegistration = () => {
-    if (!selectedMacro) return;
-
-    let finalRisks = activeSource === 'unit' 
-      ? [{ type: RiskType.OPERATIONAL, probability: manualProb as any, impact: manualImpact as any, justification: "Mensuração manual da Unidade.", normativeCitation: "N/A" }]
-      : (tempAnalysis?.risks || []);
+    if (!selectedMacro || !tempAnalysis) return;
 
     const final: Occurrence = {
       id: editingId || crypto.randomUUID(), 
@@ -191,15 +218,14 @@ export const App: React.FC = () => {
       description, 
       date: new Date().toLocaleDateString('pt-BR'),
       analysis: { 
-        ...(tempAnalysis || {
-          risks: [], existingControl: '', suggestedControl: '', mitigationSuggested: '',
-          controlEffectiveness: 3, rasStatus: 'Dentro', rasJustification: '',
-          rasSource: 'Documento', crossLineImpacts: [], resolution4557Reference: 'N/A'
-        }), 
-        risks: finalRisks, 
-        existingControl, 
+        ...tempAnalysis,
+        existingControl,
         controlEffectiveness,
-        rasSource: activeSource === 'unit' ? 'Documento' : 'Resolução 4557'
+        risks: tempAnalysis.risks.map(r => ({
+          ...r,
+          probability: manualProb as any,
+          impact: manualImpact as any
+        }))
       }
     };
 
@@ -211,80 +237,55 @@ export const App: React.FC = () => {
     resetForm();
   };
 
-  const handleExportPDF = () => {
-    if (occurrences.length === 0) return;
-    setIsExporting(true);
-    
-    try {
-      const doc = new jsPDF();
-      const timestamp = new Date().toLocaleString();
-      
-      doc.setFontSize(18);
-      doc.text('Relatório Executivo de Riscos - GECOR GIR', 14, 20);
-      doc.setFontSize(10);
-      doc.text(`Gerado em: ${timestamp}`, 14, 28);
-      doc.text(`Fundamentação: Resolução BCB 4.557/2017`, 14, 34);
-      
-      const tableData = occurrences.map(occ => {
-        const line = BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.name || '';
-        const macro = BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.macroprocesses.find(m => m.id === occ.macroprocessId)?.name || '';
-        const eff = occ.analysis?.controlEffectiveness || 3;
-        const riskSummary = (occ.analysis?.risks || []).map(r => {
-          const liquid = calculateLiquidRisk((r.probability + r.impact)/2, eff);
-          return `${r.type}: ${liquid.toFixed(2)}`;
-        }).join('\n');
-
-        return [
-          occ.date,
-          line,
-          macro,
-          occ.description.substring(0, 80) + '...',
-          EFFICACY_LABELS[eff],
-          riskSummary
-        ];
-      });
-
-      (doc as any).autoTable({
-        startY: 40,
-        head: [['Data', 'Linha', 'Macroprocesso', 'Fato Gerador', 'Redutor (Eficácia)', 'Riscos Líquidos']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
-        styles: { fontSize: 8, cellPadding: 3 },
-        columnStyles: {
-          3: { cellWidth: 50 },
-          5: { fontStyle: 'bold' }
-        }
-      });
-
-      doc.save(`Relatorio_Executivo_GIR_${new Date().getTime()}.pdf`);
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
-      alert("Erro ao gerar PDF. Verifique os dados da matriz.");
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   const handleExportExcel = () => {
     if (occurrences.length === 0) return;
-    
-    const data = occurrences.map(occ => ({
-      Data: occ.date,
-      Linha: BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.name,
-      Macroprocesso: BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.macroprocesses.find(m => m.id === occ.macroprocessId)?.name,
-      Descricao: occ.description,
-      Controle_Existente: occ.analysis?.existingControl,
-      Eficacia_Redutor: EFFICACY_LABELS[occ.analysis?.controlEffectiveness || 3],
-      Status_RAS: occ.analysis?.rasStatus,
-      Pilar_4557: occ.analysis?.resolution4557Reference,
-      Risco_Liquido: (occ.analysis?.risks || []).map(r => `${r.type}: ${calculateLiquidRisk((r.probability+r.impact)/2, occ.analysis?.controlEffectiveness || 3).toFixed(2)}`).join(' | ')
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(data);
+    const ws = XLSX.utils.json_to_sheet(occurrences.map(o => ({ 
+      Data: o.date, 
+      Linha: BUSINESS_LINES.find(l => l.id === o.businessLineId)?.name,
+      Macroprocesso: BUSINESS_LINES.find(l => l.id === o.businessLineId)?.macroprocesses.find(m => m.id === o.macroprocessId)?.name,
+      Fato: o.description, 
+      Controle_Existente: o.analysis?.existingControl,
+      Eficacia: EFFICACY_LABELS[o.analysis?.controlEffectiveness || 3],
+      Status_RAS: o.analysis?.rasStatus,
+      Probabilidade: o.analysis?.risks[0]?.probability,
+      Impacto: o.analysis?.risks[0]?.impact,
+      Referencia_Normativa: o.analysis?.resolution4557Reference
+    })));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Matriz GIR");
-    XLSX.writeFile(wb, `Planilha_Matriz_GIR_${new Date().getTime()}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "GIR");
+    XLSX.writeFile(wb, `Matriz_GIR_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExecutiveReport = () => {
+    if (occurrences.length === 0) return;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(22);
+    doc.text("MATRIZ GIR - RELATÓRIO EXECUTIVO", 20, 20);
+    doc.setFontSize(10);
+    doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 20, 28);
+    doc.text("Conformidade Resolução BACEN 4.557", 20, 33);
+    
+    const tableData = occurrences.map(o => {
+      const avg = (o.analysis?.risks.reduce((acc, r) => acc + (r.probability + r.impact)/2, 0) || 0) / (o.analysis?.risks.length || 1);
+      return [
+        o.date,
+        BUSINESS_LINES.find(l => l.id === o.businessLineId)?.name || "",
+        o.description,
+        o.analysis?.rasStatus || "",
+        avg.toFixed(2)
+      ];
+    });
+
+    (doc as any).autoTable({
+      startY: 40,
+      head: [['DATA', 'LINHA DE NEGÓCIO', 'DESCRIÇÃO DO FATO', 'RAS', 'RISCO LÍQUIDO']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+
+    doc.save(`Relatorio_Executivo_GIR_${new Date().getTime()}.pdf`);
   };
 
   const handleEditOccurrence = (occ: Occurrence) => {
@@ -292,7 +293,6 @@ export const App: React.FC = () => {
     setDescription(occ.description);
     setExistingControl(occ.analysis?.existingControl || '');
     setControlEffectiveness(occ.analysis?.controlEffectiveness || 3);
-    
     const line = BUSINESS_LINES.find(l => l.id === occ.businessLineId);
     if (line) {
       setSelectedLine(line);
@@ -301,22 +301,35 @@ export const App: React.FC = () => {
     }
     if (occ.analysis) {
       setTempAnalysis(occ.analysis);
-      setActiveSource(occ.analysis.rasSource === 'Documento' ? 'unit' : 'ia');
+      if (occ.analysis.risks.length > 0) {
+        setManualProb(occ.analysis.risks[0].probability);
+        setManualImpact(occ.analysis.risks[0].impact);
+      }
     }
     setActiveTab('matrix');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDeleteOccurrence = (id: string) => {
-    if (window.confirm("Deseja excluir este registro permanentemente?")) {
+    if (window.confirm("Deseja realmente excluir este registro da matriz?")) {
       setOccurrences(prev => prev.filter(o => o.id !== id));
     }
   };
 
+  const getStorageSize = () => {
+    try {
+      const stringified = localStorage.getItem('gir_occurrences') || '[]';
+      return (stringified.length * 2 / 1024).toFixed(1); 
+    } catch (e) {
+      return "0.0";
+    }
+  };
+
+  const totalRisksMapped = occurrences.reduce((acc, o) => acc + (o.analysis?.risks.length || 0), 0);
+
   return (
     <div className="flex min-h-screen bg-dark-950 text-slate-100 font-inter">
       {/* Sidebar Navigation */}
-      <div className="w-72 bg-slate-900 border-r border-slate-800 fixed h-full p-6 flex flex-col gap-6 z-20">
+      <div className="w-72 bg-[#0a0f1d] border-r border-slate-800 fixed h-full p-6 flex flex-col gap-6 z-20">
         <div className="flex items-center gap-3 mb-4">
            <div className="p-2 bg-blue-600 rounded-xl shadow-lg"><ShieldAlert className="text-white" size={24} /></div>
            <h1 className="text-xl font-black tracking-tighter">MATRIZ GIR - GECOR</h1>
@@ -331,7 +344,7 @@ export const App: React.FC = () => {
            </button>
         </nav>
 
-        <div className="mt-4 flex flex-col gap-1 overflow-y-auto max-h-[50vh] custom-scrollbar">
+        <div className="mt-4 flex flex-col gap-1 overflow-y-auto max-h-[40vh] custom-scrollbar">
            <span className="text-[10px] font-black text-slate-600 uppercase px-3 mb-2 tracking-widest">Matrizes por Linha</span>
            {BUSINESS_LINES.map(line => (
              <button key={line.id} onClick={() => { setSelectedLine(line); setActiveTab('matrix'); }} className={`p-3 rounded-xl flex items-center gap-3 font-bold transition-all text-xs text-left ${selectedLine.id === line.id && activeTab === 'matrix' ? 'bg-emerald-600/20 text-emerald-400 border-l-4 border-emerald-500' : 'text-slate-500 hover:bg-slate-800'}`}>
@@ -339,247 +352,207 @@ export const App: React.FC = () => {
              </button>
            ))}
         </div>
+
+        <div className="mt-auto pt-6 border-t border-slate-800">
+           <div className={`p-4 rounded-2xl flex flex-col gap-3 ${hasApiKey ? 'bg-emerald-600/10 border border-emerald-500/20' : 'bg-red-600/10 border border-red-500/20'}`}>
+              <div className="flex items-center gap-2">
+                 <div className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                 <span className="text-[9px] font-black uppercase text-slate-400">Status Motor IA</span>
+              </div>
+              {!hasApiKey && (
+                 <button onClick={handleOpenKeySelector} className="flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-500 text-[10px] font-black uppercase rounded-lg transition-all shadow-lg">
+                    <Key size={12}/> Conectar AI Studio
+                 </button>
+              )}
+           </div>
+        </div>
       </div>
 
-      {/* Main Content Area */}
       <main className="ml-72 p-10 w-full relative z-10">
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            <header className="flex justify-between items-center mb-10">
-               <div>
-                 <h2 className="text-3xl font-black uppercase tracking-tighter">Visão Consolidada</h2>
-                 <p className="text-slate-500 italic">Consolidado Geral de Exposição e Riscos Residuais</p>
-               </div>
-               <div className="flex gap-3">
-                  <button 
-                    onClick={handleExportPDF}
-                    disabled={isExporting || occurrences.length === 0}
-                    className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-2xl flex items-center gap-2 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-30"
-                  >
-                    {isExporting ? <Loader2 className="animate-spin" size={16}/> : <Download size={16} />}
-                    Relatório Executivo
-                  </button>
-                  <button 
-                    onClick={handleExportExcel}
-                    disabled={occurrences.length === 0}
-                    className="px-6 py-3 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 rounded-2xl flex items-center gap-2 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-30"
-                  >
-                    <FileSpreadsheet size={16} />
-                    Exportar XLSX
-                  </button>
-               </div>
-            </header>
-            <RiskDashboard occurrences={occurrences} />
-          </div>
-        )}
+        {activeTab === 'dashboard' && <RiskDashboard occurrences={occurrences} />}
 
         {activeTab === 'matrix' && (
-           <div className="max-w-6xl mx-auto space-y-10">
-              <header className="flex justify-between items-end">
-                <div>
-                  <h1 className="text-4xl font-black uppercase tracking-tight">{selectedLine.name}</h1>
-                  <p className="text-slate-500 font-medium italic">Matriz de Risco GIR - Resolução BCB 4.557</p>
-                </div>
-                <button onClick={handleExportPDF} className="flex items-center gap-2 p-3 bg-blue-600 rounded-xl text-white text-xs font-black uppercase shadow-lg hover:scale-105 transition-all">
-                   <Download size={16} /> Exportar Linha
-                </button>
-              </header>
+           <div className="max-w-6xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                 <div ref={formRef} className="space-y-8">
+                    <div className="flex items-center gap-3 mb-2">
+                       <Sparkles className="text-blue-400" size={24} />
+                       <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-100">IDENTIFICAÇÃO DO EVENTO</h2>
+                    </div>
 
-              {/* Input Form */}
-              <div ref={formRef} className={`bg-slate-900 p-8 rounded-[40px] border-2 shadow-2xl transition-all duration-500 ${editingId ? 'border-amber-500/50' : 'border-slate-800'}`}>
-                 <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-2xl font-black flex items-center gap-3 uppercase tracking-tighter text-slate-100">
-                        {editingId ? <Edit3 className="text-amber-400" /> : <Sparkles className="text-blue-400" />}
-                        {editingId ? 'Manutenção de Registro' : 'Identificação do Evento'}
-                    </h2>
-                    {editingId && (
-                      <button onClick={resetForm} className="text-red-400 text-[10px] font-black uppercase hover:text-red-300 flex items-center gap-1 group">
-                        <X size={14}/> Cancelar Edição
-                      </button>
-                    )}
-                 </div>
-
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                             <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block tracking-widest">Macroprocesso</label>
-                             <select className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl outline-none focus:border-blue-500 transition-colors text-sm" value={selectedMacro?.id || ''} onChange={(e) => setSelectedMacro(selectedLine.macroprocesses.find(m => m.id === e.target.value) || null)}>
-                                <option value="">Selecione...</option>
-                                {selectedLine.macroprocesses.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                             </select>
-                          </div>
-                          <div>
-                             <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block tracking-widest">Anexar RAS (PDF)</label>
-                             <div className="relative group">
-                                <input type="file" accept=".pdf" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                                <div className={`w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl flex items-center justify-center gap-2 transition-all ${rasFile ? 'border-emerald-500 text-emerald-400' : 'group-hover:border-blue-500 text-slate-500'}`}>
-                                   {rasFile ? <CheckCircle2 size={18}/> : <FileUp size={18}/>}
-                                   <span className="text-[10px] font-black uppercase">{rasFile ? 'Arquivo Pronto' : 'Upload RAS'}</span>
-                                </div>
+                    <div className="grid grid-cols-2 gap-6">
+                       <div className="space-y-2">
+                          <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">MACROPROCESSO</label>
+                          <select 
+                            className="w-full p-4 bg-[#0f172a]/50 border border-slate-800 rounded-xl text-sm font-bold focus:border-blue-500 transition-all appearance-none outline-none" 
+                            value={selectedMacro?.id || ''} 
+                            onChange={(e) => setSelectedMacro(selectedLine.macroprocesses.find(m => m.id === e.target.value) || null)}
+                          >
+                             <option value="">Selecione...</option>
+                             {selectedLine.macroprocesses.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                          </select>
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">ANEXAR RAS (PDF)</label>
+                          <div className="relative group h-[54px]">
+                             <input type="file" accept=".pdf" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                             <div className={`w-full h-full bg-[#0f172a]/50 border border-slate-800 rounded-xl flex items-center justify-center gap-2 transition-all ${rasFile ? 'border-emerald-500 text-emerald-400' : 'text-slate-500 group-hover:border-slate-700'}`}>
+                                <FileUp size={16}/>
+                                <span className="text-[10px] font-black uppercase">{rasFile ? 'PDF CARREGADO' : 'UPLOAD RAS'}</span>
                              </div>
                           </div>
                        </div>
-                       <div>
-                          <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block tracking-widest">Descrição Técnica (Fato Gerador)</label>
-                          <textarea className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl h-32 resize-none outline-none focus:border-blue-500 transition-colors" placeholder="Descreva detalhadamente a ocorrência..." value={description} onChange={(e) => setDescription(e.target.value)}/>
+                    </div>
+
+                    <div className="space-y-2">
+                       <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">DESCRIÇÃO TÉCNICA (FATO GERADOR)</label>
+                       <textarea 
+                          className="w-full p-5 bg-[#0f172a]/50 border border-slate-800 rounded-2xl h-36 resize-none text-sm leading-relaxed focus:border-blue-500 transition-all outline-none" 
+                          placeholder="Descreva detalhadamente a ocorrência..." 
+                          value={description} 
+                          onChange={(e) => setDescription(e.target.value)}
+                       />
+                    </div>
+
+                    <div className="bg-[#0f172a]/30 border border-slate-800 rounded-3xl p-6 space-y-8">
+                       <div className="flex items-center gap-2 text-emerald-500">
+                          <UserCheck size={18} />
+                          <h3 className="text-[11px] font-black uppercase tracking-widest">AUTOAVALIAÇÃO DA UNIDADE</h3>
                        </div>
-                       
-                       <div className="bg-slate-950 p-6 rounded-[32px] border border-slate-800 shadow-inner space-y-6">
-                          <div>
-                            <p className="text-emerald-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 mb-4"><UserCheck size={16}/> Autoavaliação da Unidade</p>
-                            <div className="grid grid-cols-2 gap-4">
-                               <div>
-                                  <label className="text-[9px] font-black text-slate-500 uppercase">Probabilidade (A)</label>
-                                  <select className="w-full mt-1 p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs outline-none" value={manualProb} onChange={(e) => setManualProb(Number(e.target.value))}>
-                                     {[1,2,3,4,5].map(v => <option key={v} value={v}>Nota {v}</option>)}
-                                  </select>
-                               </div>
-                               <div>
-                                  <label className="text-[9px] font-black text-slate-500 uppercase">Impacto GIR (B)</label>
-                                  <select className="w-full mt-1 p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs outline-none" value={manualImpact} onChange={(e) => setManualImpact(Number(e.target.value))}>
-                                     {[1,2,3,4,5].map(v => <option key={v} value={v}>Nota {v}</option>)}
-                                  </select>
-                               </div>
-                            </div>
-                          </div>
 
-                          <div className="border-t border-slate-800 pt-6">
-                            <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block tracking-widest flex items-center gap-2">
-                               <ClipboardCheck size={14} className="text-emerald-500" /> Controle Efetuado pela Unidade
-                            </label>
-                            <textarea className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl h-20 resize-none outline-none focus:border-emerald-500 transition-colors" placeholder="Barreiras e controles mitigatórios..." value={existingControl} onChange={(e) => setExistingControl(e.target.value)}/>
+                       <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">PROBABILIDADE (A)</label>
+                             <select 
+                                className="w-full p-4 bg-[#0f172a]/80 border border-slate-800 rounded-xl text-sm font-bold focus:border-emerald-500 transition-all outline-none" 
+                                value={manualProb} 
+                                onChange={(e) => setManualProb(Number(e.target.value))}
+                             >
+                                {[1,2,3,4,5].map(v => <option key={v} value={v}>Nota {v}</option>)}
+                             </select>
                           </div>
-
-                          <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800">
-                             <label className="text-[10px] font-black uppercase text-slate-500 mb-3 block tracking-widest flex items-center gap-2">
-                                <ShieldHalf size={14} className="text-blue-400" /> Avaliação do Redutor (Eficácia)
-                             </label>
-                             <select className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs outline-none focus:border-blue-500 transition-all font-bold" value={controlEffectiveness} onChange={(e) => setControlEffectiveness(Number(e.target.value))}>
-                                {Object.keys(EFFICACY_LABELS).map((val) => (
-                                   <option key={val} value={val}>{val} - {EFFICACY_LABELS[Number(val)]}</option>
-                                ))}
+                          <div className="space-y-2">
+                             <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">IMPACTO GIR (B)</label>
+                             <select 
+                                className="w-full p-4 bg-[#0f172a]/80 border border-slate-800 rounded-xl text-sm font-bold focus:border-emerald-500 transition-all outline-none" 
+                                value={manualImpact} 
+                                onChange={(e) => setManualImpact(Number(e.target.value))}
+                             >
+                                {[1,2,3,4,5].map(v => <option key={v} value={v}>Nota {v}</option>)}
                              </select>
                           </div>
                        </div>
+
+                       <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-emerald-500/80 mb-2">
+                             <ClipboardCheck size={16} />
+                             <label className="text-[9px] font-black uppercase tracking-wider">CONTROLE EFETUADO PELA UNIDADE</label>
+                          </div>
+                          <textarea 
+                             className="w-full p-5 bg-[#0f172a]/50 border border-slate-800 rounded-2xl h-24 resize-none text-sm leading-relaxed focus:border-emerald-500 transition-all outline-none" 
+                             placeholder="Barreiras e controles mitigatórios..." 
+                             value={existingControl} 
+                             onChange={(e) => setExistingControl(e.target.value)}
+                          />
+                       </div>
+
+                       <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-blue-500/80 mb-2">
+                             <ShieldHalf size={16} />
+                             <label className="text-[9px] font-black uppercase tracking-wider">AVALIAÇÃO DO REDUTOR (EFICÁCIA)</label>
+                          </div>
+                          <select 
+                             className="w-full p-4 bg-[#0f172a]/80 border border-slate-800 rounded-xl text-sm font-bold focus:border-blue-500 transition-all outline-none" 
+                             value={controlEffectiveness} 
+                             onChange={(e) => setControlEffectiveness(Number(e.target.value))}
+                          >
+                             {Object.keys(EFFICACY_LABELS).map((val) => <option key={val} value={val}>{EFFICACY_LABELS[Number(val)]}</option>)}
+                          </select>
+                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                       {isAnalyzing ? (
-                         <div className="h-full border-2 border-blue-900/30 rounded-[40px] flex flex-col items-center justify-center p-8 bg-slate-950/40 text-center animate-pulse min-h-[400px]">
-                            <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
-                            <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest">IA Analisando Risco Operacional...</p>
-                         </div>
-                       ) : tempAnalysis ? (
-                         <div className="space-y-6 animate-in">
-                            <div className="bg-slate-950 p-6 rounded-[32px] border border-slate-800">
-                               <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-6 flex items-center gap-2"><Settings2 size={14}/> Comparativo de Mensuração</p>
-                               <div className="grid grid-cols-2 gap-4">
-                                  <button onClick={() => setActiveSource('unit')} className={`p-4 rounded-2xl flex flex-col items-center border-2 transition-all ${activeSource === 'unit' ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 opacity-40'}`}>
-                                     <UserCheck size={20} className="mb-2" />
-                                     <span className="text-[10px] font-black uppercase">Unidade</span>
-                                     <span className="text-lg font-black">{((manualProb + manualImpact)/2).toFixed(2)}</span>
-                                  </button>
-                                  <button onClick={() => setActiveSource('ia')} className={`p-4 rounded-2xl flex flex-col items-center border-2 transition-all ${activeSource === 'ia' ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 opacity-40'}`}>
-                                     <BrainCircuit size={20} className="mb-2" />
-                                     <span className="text-[10px] font-black uppercase">Auditoria IA</span>
-                                     <span className="text-lg font-black">{((tempAnalysis.risks[0]?.probability + tempAnalysis.risks[0]?.impact)/2).toFixed(2)}</span>
-                                  </button>
-                               </div>
-                            </div>
-                            
-                            <div className="bg-slate-950/50 p-6 rounded-[32px] border border-slate-800 space-y-4">
-                               <div>
-                                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><FileText size={14}/> Sugestão de Melhoria IA</h4>
-                                 <p className="text-[11px] text-slate-300 italic leading-relaxed border-l-2 border-blue-500 pl-4">
-                                   {tempAnalysis.suggestedControl}
-                                 </p>
-                               </div>
-                               <div className="pt-4 border-t border-slate-800">
-                                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Scale size={14} className="text-amber-500"/> Fundamentação RAS</h4>
-                                 <p className="text-[10px] text-slate-400 line-clamp-3">
-                                   {tempAnalysis.rasJustification}
-                                 </p>
-                               </div>
-                            </div>
-                         </div>
-                       ) : (
-                         <div className="h-full border-2 border-dashed border-slate-800 rounded-[40px] flex flex-col items-center justify-center p-14 text-center opacity-40 min-h-[400px]">
-                            <Cpu size={48} className="mb-4" />
-                            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Aguardando Avaliação IA</p>
-                            <p className="text-[10px] text-slate-600 mt-2 font-bold uppercase">Preencha o fato gerador e clique em avaliar</p>
-                         </div>
-                       )}
-                       {apiError && (
-                         <div className="bg-red-950/20 border border-red-900/50 p-4 rounded-2xl text-red-500 text-[10px] font-bold flex items-center gap-2">
-                           <AlertTriangle size={14} /> {apiError}
-                         </div>
-                       )}
+                    <div className="flex gap-4 pt-4">
+                       <button onClick={handleRiskEvaluation} disabled={!description || !selectedMacro || isAnalyzing} className="flex-1 px-8 py-5 rounded-3xl font-black text-xs flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 transition-all">
+                          {isAnalyzing ? <Loader2 className="animate-spin" size={20}/> : <BrainCircuit size={20}/>} 
+                          IA AVALIAR
+                       </button>
                     </div>
                  </div>
 
-                 <div className="flex justify-end gap-4 border-t border-slate-800 pt-8 mt-10">
-                    <button onClick={handleRiskEvaluation} disabled={!description || !selectedMacro || isAnalyzing} className="px-10 py-5 rounded-3xl font-black text-xs flex items-center gap-3 hover:scale-105 transition-all shadow-xl uppercase tracking-widest bg-blue-600 disabled:opacity-50">
-                       {isAnalyzing ? <Loader2 className="animate-spin" size={20}/> : <ShieldCheck size={20}/>} 
-                       Avaliação de Risco
-                    </button>
+                 <div className="relative">
                     {tempAnalysis && (
-                       <button onClick={handleConfirmRegistration} className="px-10 py-5 rounded-3xl font-black text-xs flex items-center gap-3 hover:scale-105 transition-all uppercase shadow-2xl bg-emerald-600">
-                          <CheckCircle2 size={20}/> 
-                          Commit na Matriz GIR
-                       </button>
+                       <div className="bg-[#0a0f1d] p-8 rounded-[40px] border border-slate-800 flex flex-col gap-8 shadow-2xl">
+                          <div className="flex justify-between items-center border-b border-slate-800 pb-6">
+                             <div className="flex items-center gap-3">
+                                <Layers className="text-blue-500" size={24}/>
+                                <div><p className="text-[10px] font-black uppercase text-blue-400">PARECER TÉCNICO IA</p></div>
+                             </div>
+                             <div className="px-4 py-1.5 rounded-full border text-[10px] font-black uppercase bg-emerald-600/20 text-emerald-400 border-emerald-500/30">
+                                RAS: {tempAnalysis.rasStatus}
+                             </div>
+                          </div>
+                          <div className="space-y-4">
+                             {tempAnalysis.risks.map((r, idx) => (
+                                <div key={idx} className="bg-[#0f172a] border border-slate-800 p-5 rounded-2xl">
+                                   <div className="flex justify-between mb-2">
+                                      <span className="text-[11px] font-black text-slate-200 uppercase">{r.type}</span>
+                                   </div>
+                                   <p className="text-[11px] text-slate-400 italic">"{r.justification}"</p>
+                                </div>
+                             ))}
+                          </div>
+                          <button onClick={handleConfirmRegistration} className="w-full py-5 rounded-3xl font-black text-xs bg-emerald-600 hover:bg-emerald-500 transition-all uppercase">
+                             GRAVAR NA MATRIZ
+                          </button>
+                       </div>
                     )}
                  </div>
               </div>
 
-              {/* History List */}
-              <div className="space-y-8 pt-10">
-                 <h3 className="text-2xl font-black flex items-center gap-3 text-slate-200 uppercase tracking-tighter"><HistoryIcon size={24} className="text-blue-500" /> Histórico de Apontamentos</h3>
-                 <div className="grid grid-cols-1 gap-6">
+              <div className="mt-16 space-y-8 pb-20">
+                 <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                    <h3 className="text-xl font-black flex items-center gap-3 text-slate-200 uppercase tracking-tighter"><HistoryIcon size={20} className="text-blue-500" /> HISTÓRICO DE LANÇAMENTOS</h3>
+                    
+                    <div className="flex items-center gap-4">
+                       <button 
+                          onClick={handleExecutiveReport} 
+                          className="px-6 py-2.5 bg-[#0f172a] hover:bg-slate-800 text-slate-400 font-black text-[10px] uppercase rounded-full flex items-center justify-center gap-2 transition-all border border-slate-800"
+                       >
+                          <Download size={14}/> RELATÓRIO EXECUTIVO
+                       </button>
+                       
+                       <button 
+                          onClick={handleExportExcel} 
+                          className="px-6 py-2.5 border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-500 font-black text-[10px] uppercase rounded-full flex items-center justify-center gap-2 transition-all"
+                       >
+                          <FileSpreadsheet size={14}/> EXPORTAR XLSX
+                       </button>
+                    </div>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 gap-4">
                     {occurrences.filter(o => o.businessLineId === selectedLine.id).map(occ => {
-                      const eff = occ.analysis?.controlEffectiveness || 3;
+                      const avgLiquid = occ.analysis?.risks.reduce((acc, r) => acc + calculateLiquidRisk((r.probability + r.impact)/2, occ.analysis?.controlEffectiveness || 3), 0) || 0;
+                      const liquidScore = (avgLiquid / (occ.analysis?.risks.length || 1)).toFixed(2);
+                      const levelData = getRiskLevelData(Number(liquidScore));
+
                       return (
-                       <div key={occ.id} className="bg-slate-900 rounded-[40px] border border-slate-800 overflow-hidden relative shadow-xl hover:border-slate-700 transition-all group">
-                          <div className="p-8 bg-slate-800/20 flex justify-between items-start border-b border-slate-800">
+                       <div key={occ.id} className="bg-[#0f172a] rounded-2xl border border-slate-800 p-6 flex justify-between items-center group hover:border-slate-600 transition-all">
+                          <div className="flex items-center gap-6">
+                             <div className={`w-12 h-12 rounded-xl ${levelData.color} flex items-center justify-center text-white font-black text-sm shadow-lg`}>
+                                {liquidScore}
+                             </div>
                              <div>
-                                <h4 className="font-bold text-xl text-slate-100 uppercase mb-2">{occ.description}</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  <span className="text-[8px] font-black px-3 py-1 rounded-full border border-slate-700 bg-slate-950 text-slate-400 uppercase">
-                                     {occ.date} • {selectedLine.macroprocesses.find(m => m.id === occ.macroprocessId)?.name}
-                                  </span>
-                                  <span className="text-[8px] font-black px-3 py-1 rounded-full border border-blue-500/30 text-blue-400 bg-blue-500/5 uppercase">
-                                     REDUTOR (EFICÁCIA): {EFFICACY_LABELS[eff]}
-                                  </span>
+                                <h4 className="font-bold text-sm text-slate-100 uppercase">{occ.description}</h4>
+                                <div className="flex gap-4 mt-1">
+                                   <p className="text-[9px] text-slate-500 font-black uppercase">{occ.date} • {selectedLine.macroprocesses.find(m => m.id === occ.macroprocessId)?.name}</p>
+                                   <p className="text-[9px] text-emerald-500 font-black uppercase">RAS: {occ.analysis?.rasStatus}</p>
                                 </div>
                              </div>
-                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleEditOccurrence(occ)} className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 hover:bg-amber-500 hover:text-white transition-all"><Edit3 size={16}/></button>
-                                <button onClick={() => handleDeleteOccurrence(occ.id)} className="p-3 bg-red-950/20 border border-red-900/30 rounded-xl text-red-500 hover:bg-red-600 hover:text-white transition-all"><Trash2 size={16}/></button>
-                             </div>
                           </div>
-
-                          <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                             {(occ.analysis?.risks || []).map((r, idx) => {
-                                const inherent = (r.probability + r.impact) / 2;
-                                const liquid = calculateLiquidRisk(inherent, eff);
-                                const level = getRiskLevelData(liquid);
-                                return (
-                                   <div key={idx} className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800 flex flex-col gap-4">
-                                      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                                         <div className="flex flex-col">
-                                            <span className="text-[11px] font-black uppercase text-blue-400">{r.type}</span>
-                                            <span className="text-[8px] font-bold text-slate-500">{r.normativeCitation}</span>
-                                         </div>
-                                         <div className={`${level.colorClass} px-3 py-1 rounded-lg text-[9px] font-black shadow-lg uppercase`}>
-                                            Líquido: {liquid.toFixed(2)}
-                                         </div>
-                                      </div>
-                                      <p className="text-[11px] text-slate-400 leading-relaxed italic">
-                                         "{r.justification}"
-                                      </p>
-                                   </div>
-                                );
-                             })}
+                          <div className="flex gap-3">
+                             <button onClick={() => handleEditOccurrence(occ)} className="p-2 bg-amber-500/10 text-amber-500 rounded-lg hover:bg-amber-500/20 transition-all"><Edit3 size={16}/></button>
+                             <button onClick={() => handleDeleteOccurrence(occ.id)} className="p-2 bg-red-950/20 text-red-500 rounded-lg hover:bg-red-950/40 transition-all"><Trash2 size={16}/></button>
                           </div>
                        </div>
                     )})}
@@ -589,102 +562,114 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'governance' && (
-           <div className="max-w-6xl mx-auto space-y-12 animate-in pb-20">
-              <header className="mb-10">
-                 <h2 className="text-4xl font-black uppercase tracking-tighter">Central de Governança</h2>
-                 <p className="text-slate-500 font-medium">Gestão Estratégica de Dados e Compliance GIR</p>
-              </header>
-
+           <div className="max-w-7xl mx-auto space-y-8 animate-in pb-20">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                 {/* Métricas do Banco */}
                  <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-slate-900 p-10 rounded-[48px] border border-slate-800 shadow-2xl">
-                       <h3 className="text-xl font-black uppercase mb-8 flex items-center gap-3"><Activity size={20} className="text-blue-500" /> Saúde do Banco de Dados</h3>
-                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
-                             <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Total Ocorrências</p>
-                             <p className="text-4xl font-black text-white">{occurrences.length}</p>
+                    <div className="bg-[#0a0f1d] p-10 rounded-[48px] border border-slate-800 shadow-2xl space-y-8">
+                       <div className="flex items-center gap-3">
+                          <Activity className="text-blue-500" size={24} />
+                          <h2 className="text-xl font-black uppercase tracking-tighter">SAÚDE DO BANCO DE DADOS</h2>
+                       </div>
+                       
+                       <div className="grid grid-cols-3 gap-6">
+                          <div className="bg-[#070b14] p-8 rounded-[32px] border border-slate-800/50">
+                             <p className="text-[10px] font-black text-slate-500 mb-4 uppercase tracking-widest">TOTAL OCORRÊNCIAS</p>
+                             <p className="text-6xl font-black text-white">{occurrences.length}</p>
                           </div>
-                          <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
-                             <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Riscos Mapeados</p>
-                             <p className="text-4xl font-black text-blue-400">
-                                {occurrences.reduce((acc, occ) => acc + (occ.analysis?.risks.length || 0), 0)}
-                             </p>
+                          <div className="bg-[#070b14] p-8 rounded-[32px] border border-slate-800/50">
+                             <p className="text-[10px] font-black text-slate-500 mb-4 uppercase tracking-widest">RISCOS MAPEADOS</p>
+                             <p className="text-6xl font-black text-blue-500">{totalRisksMapped}</p>
                           </div>
-                          <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
-                             <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Status RAS Ativo</p>
-                             <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-                                <span className="font-bold text-emerald-500">Operacional</span>
+                          <div className="bg-[#070b14] p-8 rounded-[32px] border border-slate-800/50 flex flex-col justify-center">
+                             <p className="text-[10px] font-black text-slate-500 mb-4 uppercase tracking-widest">STATUS RAS ATIVO</p>
+                             <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]"></div>
+                                <span className="text-xl font-black text-emerald-500 uppercase">Operacional</span>
                              </div>
                           </div>
                        </div>
                     </div>
 
-                    <div className="bg-slate-900 p-10 rounded-[48px] border border-slate-800 shadow-2xl">
-                       <h3 className="text-xl font-black uppercase mb-8 flex items-center gap-3"><ShieldCheck size={20} className="text-emerald-500" /> Checklist de Conformidade 4.557</h3>
-                       <div className="space-y-4">
+                    <div className="bg-[#0a0f1d] p-10 rounded-[48px] border border-slate-800 shadow-2xl space-y-10">
+                       <div className="flex items-center gap-3">
+                          <ShieldCheck className="text-emerald-500" size={24} />
+                          <h2 className="text-xl font-black uppercase tracking-tighter">CHECKLIST DE CONFORMIDADE 4.557</h2>
+                       </div>
+
+                       <div className="space-y-3">
                           {[
                             "Estrutura de Gerenciamento de Riscos (EGR)",
                             "Declaração de Apetite por Riscos (RAS)",
                             "Mensuração e Monitoramento de Risco Operacional",
                             "Relatórios de Gerenciamento Integrado",
                             "Políticas de Continuidade de Negócios"
-                          ].map((item, i) => (
-                            <div key={i} className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800 hover:border-blue-500/30 transition-all">
-                               <span className="text-xs font-bold text-slate-300">{item}</span>
-                               <CheckCircle2 size={18} className="text-emerald-500" />
-                            </div>
+                          ].map((item, idx) => (
+                             <div key={idx} className="flex items-center justify-between p-6 bg-[#070b14] border border-slate-800/50 rounded-2xl hover:border-slate-700 transition-all group">
+                                <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">{item}</span>
+                                <CheckCircle2 className="text-emerald-500" size={20} />
+                             </div>
                           ))}
                        </div>
                     </div>
                  </div>
 
-                 {/* Ações Administrativas */}
-                 <div className="space-y-6">
-                    <div className="bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-xl">
-                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2"><Settings2 size={14}/> Gestão de Base</h4>
-                       <div className="flex flex-col gap-4">
-                          <button onClick={handleExportExcel} className="w-full p-5 bg-slate-800 hover:bg-slate-700 rounded-3xl flex items-center justify-between group transition-all">
-                             <div className="flex items-center gap-3">
-                                <FileSpreadsheet size={20} className="text-emerald-500" />
-                                <span className="text-xs font-black uppercase">Backup Completo</span>
-                             </div>
-                             <Download size={16} className="opacity-30 group-hover:opacity-100" />
-                          </button>
-                          
-                          <button onClick={handleExportPDF} className="w-full p-5 bg-slate-800 hover:bg-slate-700 rounded-3xl flex items-center justify-between group transition-all">
-                             <div className="flex items-center gap-3">
-                                <Files size={20} className="text-blue-500" />
-                                <span className="text-xs font-black uppercase">Dossiê Executivo</span>
-                             </div>
-                             <Download size={16} className="opacity-30 group-hover:opacity-100" />
-                          </button>
+                 <div className="space-y-8">
+                    <div className="bg-[#0a0f1d] p-10 rounded-[48px] border border-slate-800 shadow-2xl space-y-8">
+                       <div className="flex items-center gap-3">
+                          <Settings className="text-slate-500" size={20} />
+                          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">GESTÃO DE BASE</h2>
+                       </div>
 
-                          <div className="pt-6 mt-6 border-t border-slate-800">
+                       <div className="flex flex-col gap-4">
+                          <div className="flex items-center gap-4">
                              <button 
-                                onClick={() => { if(window.confirm("ATENÇÃO: Deseja zerar todas as matrizes? Esta ação é irreversível.")) setOccurrences([]); }} 
-                                className="w-full p-5 bg-red-950/20 border border-red-900/30 hover:bg-red-600 hover:text-white rounded-3xl flex items-center gap-3 text-red-500 transition-all font-black text-xs uppercase"
+                                onClick={handleExecutiveReport} 
+                                className="flex-1 px-6 py-4 bg-[#0f172a] hover:bg-slate-800 text-slate-400 font-black text-[11px] uppercase rounded-full flex items-center justify-center gap-3 transition-all border border-slate-800"
                              >
-                                <Trash2 size={20} />
-                                Purga de Dados Total
+                                <Download size={16}/> RELATÓRIO EXECUTIVO
+                             </button>
+                             
+                             <button 
+                                onClick={handleExportExcel} 
+                                className="flex-1 px-6 py-4 border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-500 font-black text-[11px] uppercase rounded-full flex items-center justify-center gap-3 transition-all"
+                             >
+                                <FileSpreadsheet size={16}/> EXPORTAR XLSX
                              </button>
                           </div>
                        </div>
+
+                       <div className="border-t border-slate-800/50 pt-8">
+                          <button 
+                             onClick={() => { if(window.confirm("Atenção! Esta ação apagará permanentemente todos os registros da matriz. Continuar?")) setOccurrences([]); }}
+                             className="w-full p-6 bg-[#1a0b0b] hover:bg-[#2a0f0f] border border-red-900/30 rounded-3xl flex items-center justify-center gap-4 group transition-all"
+                          >
+                             <Trash2 size={18} className="text-red-500" />
+                             <span className="text-[11px] font-black uppercase text-red-500">PURGA DE DADOS TOTAL</span>
+                          </button>
+                       </div>
                     </div>
 
-                    <div className="bg-blue-600/10 border border-blue-500/20 rounded-[40px] p-8">
-                       <div className="flex items-center gap-3 mb-4">
-                          <HardDrive size={24} className="text-blue-400" />
-                          <h4 className="text-sm font-black uppercase text-blue-400">Status LocalStorage</h4>
+                    <div className="bg-[#0a0f1d] p-10 rounded-[48px] border border-slate-800 shadow-2xl space-y-8 relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-8 opacity-5"><HardDrive size={120} /></div>
+                       <div className="flex items-center gap-3 relative z-10">
+                          <HardDrive className="text-blue-500" size={20} />
+                          <h2 className="text-[11px] font-black uppercase tracking-widest text-blue-500">STATUS LOCALSTORAGE</h2>
                        </div>
-                       <div className="flex items-center gap-2 mb-2">
-                          <div className="h-1 flex-1 bg-slate-800 rounded-full overflow-hidden">
-                             <div className="h-full bg-blue-500" style={{ width: `${Math.min((JSON.stringify(occurrences).length / 5000000) * 100, 100)}%` }}></div>
+
+                       <div className="space-y-4 relative z-10">
+                          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                             <div 
+                                className="h-full bg-blue-600 transition-all duration-1000" 
+                                style={{ width: `${Math.min(100, (parseFloat(getStorageSize()) / 5120) * 100)}%` }}
+                             ></div>
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500">{(JSON.stringify(occurrences).length / 1024).toFixed(1)} KB</span>
+                          <div className="flex justify-end">
+                             <span className="text-[10px] font-black text-slate-500 uppercase">{getStorageSize()} KB</span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-medium italic leading-relaxed">
+                             Espaço utilizado pela base de dados GIR no navegador.
+                          </p>
                        </div>
-                       <p className="text-[10px] text-slate-500 italic">Espaço utilizado pela base de dados GIR no navegador.</p>
                     </div>
                  </div>
               </div>
