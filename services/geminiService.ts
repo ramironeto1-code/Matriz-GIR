@@ -68,13 +68,10 @@ export const analyzeOccurrence = async (
   userExistingControl?: string,
   rasPdfBase64?: string
 ) => {
+  // Inicialização direta conforme diretrizes do SDK para evitar erros de checagem em tempo de execução
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   try {
-    if (!process.env.API_KEY) {
-      throw new Error("A chave de API (API_KEY) não foi detectada no servidor. Verifique as variáveis de ambiente.");
-    }
-
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
     const textPrompt = `ATUAÇÃO: Auditor Especialista em Riscos Integrados (GIR) - Conformidade Regulatória.
     OBJETIVO: Realizar a AVALIAÇÃO DE RISCO da ocorrência: "${description}".
     CONTEXTO: Macroprocesso "${macroprocess}" na Linha de Negócio "${businessLine}".
@@ -97,34 +94,29 @@ export const analyzeOccurrence = async (
       });
     }
 
-    // Uso do modelo PRO para maior precisão em tarefas complexas de conformidade
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: [{ parts }],
       config: {
         responseMimeType: "application/json",
         responseSchema: analysisSchema,
-        temperature: 0.1,
-        thinkingConfig: { thinkingBudget: 0 }
+        temperature: 0.1
       }
     });
 
     if (!response.text) {
-      throw new Error("Não foi possível obter uma resposta estruturada da IA.");
+      throw new Error("Resposta da IA vazia ou inválida.");
     }
 
     return JSON.parse(response.text);
   } catch (error: any) {
     console.error("Erro na análise Gemini:", error);
     
-    if (error.message?.includes("API_KEY")) {
-      throw new Error("Erro de Configuração: API_KEY ausente no ambiente de hospedagem.");
+    // Tratamento de erro simplificado para o usuário
+    if (error.message?.includes("API_KEY") || error.message?.includes("key")) {
+      throw new Error("Erro de autenticação com o motor de IA. Verifique a validade da chave configurada.");
     }
     
-    if (error.message?.includes("quota") || error.message?.includes("429")) {
-      throw new Error("Limite de requisições excedido. Tente novamente em alguns segundos.");
-    }
-    
-    throw new Error(error.message || "Erro na comunicação com o motor de IA.");
+    throw new Error(error.message || "Erro inesperado ao processar avaliação de risco.");
   }
 };

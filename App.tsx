@@ -38,7 +38,10 @@ import {
   Printer,
   RotateCcw,
   Scale,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Activity,
+  Files,
+  HardDrive
 } from 'lucide-react';
 
 const EFFICACY_REDUCTION_MAP: Record<number, number> = {
@@ -65,6 +68,26 @@ export const RISK_LEVELS_INFO = [
   { range: '1,00 -> 1,80', label: 'Muito Baixo', color: 'bg-emerald-600', hex: '#059669', rgb: [5, 150, 105], description: 'Riscos irrelevantes monitorados periodicamente.' },
 ];
 
+/**
+ * Componente de Legenda para os níveis de risco exibidos no dashboard e na matriz.
+ */
+export const RiskLegend: React.FC = () => (
+  <div className="bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-xl">
+    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Legenda de Risco Líquido</h4>
+    <div className="space-y-4">
+      {RISK_LEVELS_INFO.map((level, idx) => (
+        <div key={idx} className="flex items-center gap-4 group">
+          <div className={`w-4 h-4 rounded-full ${level.color} shadow-lg group-hover:scale-125 transition-transform`} />
+          <div>
+            <p className="text-[10px] font-black text-slate-200 uppercase">{level.label}</p>
+            <p className="text-[9px] text-slate-500 font-bold">{level.range}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 export const getRiskLevelData = (score: number) => {
   if (score >= 4.21) return { ...RISK_LEVELS_INFO[0], colorClass: RISK_LEVELS_INFO[0].color + ' text-white' };
   if (score >= 3.41) return { ...RISK_LEVELS_INFO[1], colorClass: RISK_LEVELS_INFO[1].color + ' text-white' };
@@ -77,28 +100,6 @@ export const calculateLiquidRisk = (inherentScore: number, effectiveness: number
   const reduction = EFFICACY_REDUCTION_MAP[effectiveness] || 0;
   return inherentScore * (1 - reduction);
 };
-
-export const RiskLegend: React.FC = () => (
-  <div className="bg-slate-900 p-8 rounded-[32px] border border-slate-800 shadow-xl">
-    <h4 className="text-[10px] font-black uppercase text-slate-500 mb-6 tracking-widest flex items-center gap-2">
-      <Info size={14} className="text-blue-400" /> Legenda de Risco (GIR)
-    </h4>
-    <div className="space-y-4">
-      {RISK_LEVELS_INFO.map((level, i) => (
-        <div key={i} className="flex items-start gap-4">
-          <div className={`w-3 h-12 rounded-full ${level.color}`} />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-slate-200 uppercase">{level.label}</span>
-              <span className="text-[8px] font-bold text-slate-500">{level.range}</span>
-            </div>
-            <p className="text-[10px] text-slate-500 leading-tight mt-1">{level.description}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 export const App: React.FC = () => {
   const [occurrences, setOccurrences] = useState<Occurrence[]>(() => {
@@ -214,52 +215,61 @@ export const App: React.FC = () => {
     if (occurrences.length === 0) return;
     setIsExporting(true);
     
-    const doc = new jsPDF();
-    const timestamp = new Date().toLocaleString();
-    
-    doc.setFontSize(18);
-    doc.text('Relatório Executivo de Riscos - GECOR GIR', 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Gerado em: ${timestamp}`, 14, 28);
-    doc.text(`Resolução BCB 4.557/2017`, 14, 34);
-    
-    const tableData = occurrences.map(occ => {
-      const line = BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.name || '';
-      const macro = BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.macroprocesses.find(m => m.id === occ.macroprocessId)?.name || '';
-      const eff = occ.analysis?.controlEffectiveness || 3;
-      const riskSummary = (occ.analysis?.risks || []).map(r => {
-        const liquid = calculateLiquidRisk((r.probability + r.impact)/2, eff);
-        return `${r.type}: ${liquid.toFixed(2)}`;
-      }).join(', ');
+    try {
+      const doc = new jsPDF();
+      const timestamp = new Date().toLocaleString();
+      
+      doc.setFontSize(18);
+      doc.text('Relatório Executivo de Riscos - GECOR GIR', 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Gerado em: ${timestamp}`, 14, 28);
+      doc.text(`Fundamentação: Resolução BCB 4.557/2017`, 14, 34);
+      
+      const tableData = occurrences.map(occ => {
+        const line = BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.name || '';
+        const macro = BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.macroprocesses.find(m => m.id === occ.macroprocessId)?.name || '';
+        const eff = occ.analysis?.controlEffectiveness || 3;
+        const riskSummary = (occ.analysis?.risks || []).map(r => {
+          const liquid = calculateLiquidRisk((r.probability + r.impact)/2, eff);
+          return `${r.type}: ${liquid.toFixed(2)}`;
+        }).join('\n');
 
-      return [
-        occ.date,
-        line,
-        macro,
-        occ.description.substring(0, 50) + '...',
-        EFFICACY_LABELS[eff],
-        riskSummary
-      ];
-    });
+        return [
+          occ.date,
+          line,
+          macro,
+          occ.description.substring(0, 80) + '...',
+          EFFICACY_LABELS[eff],
+          riskSummary
+        ];
+      });
 
-    (doc as any).autoTable({
-      startY: 40,
-      head: [['Data', 'Linha', 'Macroprocesso', 'Fato Gerador', 'Redutor', 'Riscos Líquidos']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [30, 64, 175] },
-      styles: { fontSize: 8 }
-    });
+      (doc as any).autoTable({
+        startY: 40,
+        head: [['Data', 'Linha', 'Macroprocesso', 'Fato Gerador', 'Redutor (Eficácia)', 'Riscos Líquidos']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [37, 99, 235], fontSize: 9 },
+        styles: { fontSize: 8, cellPadding: 3 },
+        columnStyles: {
+          3: { cellWidth: 50 },
+          5: { fontStyle: 'bold' }
+        }
+      });
 
-    doc.save(`Relatorio_GIR_${new Date().getTime()}.pdf`);
-    setIsExporting(false);
+      doc.save(`Relatorio_Executivo_GIR_${new Date().getTime()}.pdf`);
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+      alert("Erro ao gerar PDF. Verifique os dados da matriz.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleExportExcel = () => {
     if (occurrences.length === 0) return;
     
     const data = occurrences.map(occ => ({
-      ID: occ.id,
       Data: occ.date,
       Linha: BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.name,
       Macroprocesso: BUSINESS_LINES.find(l => l.id === occ.businessLineId)?.macroprocesses.find(m => m.id === occ.macroprocessId)?.name,
@@ -267,13 +277,14 @@ export const App: React.FC = () => {
       Controle_Existente: occ.analysis?.existingControl,
       Eficacia_Redutor: EFFICACY_LABELS[occ.analysis?.controlEffectiveness || 3],
       Status_RAS: occ.analysis?.rasStatus,
-      Referencia_IA: occ.analysis?.resolution4557Reference
+      Pilar_4557: occ.analysis?.resolution4557Reference,
+      Risco_Liquido: (occ.analysis?.risks || []).map(r => `${r.type}: ${calculateLiquidRisk((r.probability+r.impact)/2, occ.analysis?.controlEffectiveness || 3).toFixed(2)}`).join(' | ')
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Matriz GIR");
-    XLSX.writeFile(wb, `Matriz_GIR_${new Date().getTime()}.xlsx`);
+    XLSX.writeFile(wb, `Planilha_Matriz_GIR_${new Date().getTime()}.xlsx`);
   };
 
   const handleEditOccurrence = (occ: Occurrence) => {
@@ -297,7 +308,7 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteOccurrence = (id: string) => {
-    if (window.confirm("Deseja excluir este registro permanentemente da matriz?")) {
+    if (window.confirm("Deseja excluir este registro permanentemente?")) {
       setOccurrences(prev => prev.filter(o => o.id !== id));
     }
   };
@@ -346,7 +357,7 @@ export const App: React.FC = () => {
                     className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-2xl flex items-center gap-2 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-30"
                   >
                     {isExporting ? <Loader2 className="animate-spin" size={16}/> : <Download size={16} />}
-                    Relatório PDF
+                    Relatório Executivo
                   </button>
                   <button 
                     onClick={handleExportExcel}
@@ -500,7 +511,7 @@ export const App: React.FC = () => {
                          </div>
                        )}
                        {apiError && (
-                         <div className="bg-red-950/20 border border-red-900/50 p-4 rounded-2xl text-red-500 text-[10px] font-bold flex items-center gap-2 animate-bounce">
+                         <div className="bg-red-950/20 border border-red-900/50 p-4 rounded-2xl text-red-500 text-[10px] font-bold flex items-center gap-2">
                            <AlertTriangle size={14} /> {apiError}
                          </div>
                        )}
@@ -572,30 +583,111 @@ export const App: React.FC = () => {
                           </div>
                        </div>
                     )})}
-                    {occurrences.filter(o => o.businessLineId === selectedLine.id).length === 0 && (
-                      <div className="p-20 text-center border-2 border-dashed border-slate-800 rounded-[40px] opacity-30">
-                         <ArchiveRestore size={48} className="mx-auto mb-4" />
-                         <p className="text-xs font-black uppercase tracking-widest">Nenhum registro encontrado nesta matriz</p>
-                      </div>
-                    )}
                  </div>
               </div>
            </div>
         )}
 
         {activeTab === 'governance' && (
-           <div className="max-w-4xl mx-auto space-y-12 animate-in">
-              <section className="bg-slate-900 p-12 rounded-[56px] border-2 border-slate-800 shadow-3xl text-center">
-                 <h3 className="text-3xl font-black uppercase mb-10 tracking-tighter flex items-center justify-center gap-4">
-                   <Database className="text-blue-500" size={32} /> Governança de Dados
-                 </h3>
-                 <div className="grid grid-cols-1 gap-6">
-                    <button onClick={() => { if(window.confirm("Zerar base completa?")) setOccurrences([]); }} className="w-full py-10 bg-red-600 border-4 border-red-700 rounded-[40px] flex flex-col items-center justify-center gap-4 hover:bg-red-700 transition-all shadow-2xl">
-                       <AlertTriangle size={48} className="text-white mb-2" />
-                       <span className="font-black uppercase text-2xl text-white tracking-[0.2em]">Resetar Matrizes Completas</span>
-                    </button>
+           <div className="max-w-6xl mx-auto space-y-12 animate-in pb-20">
+              <header className="mb-10">
+                 <h2 className="text-4xl font-black uppercase tracking-tighter">Central de Governança</h2>
+                 <p className="text-slate-500 font-medium">Gestão Estratégica de Dados e Compliance GIR</p>
+              </header>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                 {/* Métricas do Banco */}
+                 <div className="lg:col-span-2 space-y-8">
+                    <div className="bg-slate-900 p-10 rounded-[48px] border border-slate-800 shadow-2xl">
+                       <h3 className="text-xl font-black uppercase mb-8 flex items-center gap-3"><Activity size={20} className="text-blue-500" /> Saúde do Banco de Dados</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                             <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Total Ocorrências</p>
+                             <p className="text-4xl font-black text-white">{occurrences.length}</p>
+                          </div>
+                          <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                             <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Riscos Mapeados</p>
+                             <p className="text-4xl font-black text-blue-400">
+                                {occurrences.reduce((acc, occ) => acc + (occ.analysis?.risks.length || 0), 0)}
+                             </p>
+                          </div>
+                          <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                             <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Status RAS Ativo</p>
+                             <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span className="font-bold text-emerald-500">Operacional</span>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-10 rounded-[48px] border border-slate-800 shadow-2xl">
+                       <h3 className="text-xl font-black uppercase mb-8 flex items-center gap-3"><ShieldCheck size={20} className="text-emerald-500" /> Checklist de Conformidade 4.557</h3>
+                       <div className="space-y-4">
+                          {[
+                            "Estrutura de Gerenciamento de Riscos (EGR)",
+                            "Declaração de Apetite por Riscos (RAS)",
+                            "Mensuração e Monitoramento de Risco Operacional",
+                            "Relatórios de Gerenciamento Integrado",
+                            "Políticas de Continuidade de Negócios"
+                          ].map((item, i) => (
+                            <div key={i} className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-slate-800 hover:border-blue-500/30 transition-all">
+                               <span className="text-xs font-bold text-slate-300">{item}</span>
+                               <CheckCircle2 size={18} className="text-emerald-500" />
+                            </div>
+                          ))}
+                       </div>
+                    </div>
                  </div>
-              </section>
+
+                 {/* Ações Administrativas */}
+                 <div className="space-y-6">
+                    <div className="bg-slate-900 p-8 rounded-[40px] border border-slate-800 shadow-xl">
+                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2"><Settings2 size={14}/> Gestão de Base</h4>
+                       <div className="flex flex-col gap-4">
+                          <button onClick={handleExportExcel} className="w-full p-5 bg-slate-800 hover:bg-slate-700 rounded-3xl flex items-center justify-between group transition-all">
+                             <div className="flex items-center gap-3">
+                                <FileSpreadsheet size={20} className="text-emerald-500" />
+                                <span className="text-xs font-black uppercase">Backup Completo</span>
+                             </div>
+                             <Download size={16} className="opacity-30 group-hover:opacity-100" />
+                          </button>
+                          
+                          <button onClick={handleExportPDF} className="w-full p-5 bg-slate-800 hover:bg-slate-700 rounded-3xl flex items-center justify-between group transition-all">
+                             <div className="flex items-center gap-3">
+                                <Files size={20} className="text-blue-500" />
+                                <span className="text-xs font-black uppercase">Dossiê Executivo</span>
+                             </div>
+                             <Download size={16} className="opacity-30 group-hover:opacity-100" />
+                          </button>
+
+                          <div className="pt-6 mt-6 border-t border-slate-800">
+                             <button 
+                                onClick={() => { if(window.confirm("ATENÇÃO: Deseja zerar todas as matrizes? Esta ação é irreversível.")) setOccurrences([]); }} 
+                                className="w-full p-5 bg-red-950/20 border border-red-900/30 hover:bg-red-600 hover:text-white rounded-3xl flex items-center gap-3 text-red-500 transition-all font-black text-xs uppercase"
+                             >
+                                <Trash2 size={20} />
+                                Purga de Dados Total
+                             </button>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="bg-blue-600/10 border border-blue-500/20 rounded-[40px] p-8">
+                       <div className="flex items-center gap-3 mb-4">
+                          <HardDrive size={24} className="text-blue-400" />
+                          <h4 className="text-sm font-black uppercase text-blue-400">Status LocalStorage</h4>
+                       </div>
+                       <div className="flex items-center gap-2 mb-2">
+                          <div className="h-1 flex-1 bg-slate-800 rounded-full overflow-hidden">
+                             <div className="h-full bg-blue-500" style={{ width: `${Math.min((JSON.stringify(occurrences).length / 5000000) * 100, 100)}%` }}></div>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500">{(JSON.stringify(occurrences).length / 1024).toFixed(1)} KB</span>
+                       </div>
+                       <p className="text-[10px] text-slate-500 italic">Espaço utilizado pela base de dados GIR no navegador.</p>
+                    </div>
+                 </div>
+              </div>
            </div>
         )}
       </main>
