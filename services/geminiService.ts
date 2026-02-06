@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { RiskType } from "../types";
 
@@ -16,8 +17,8 @@ const analysisSchema = {
             type: Type.STRING, 
             description: "Justificativa técnica detalhada contendo obrigatoriamente a fundamentação legal baseada na Res. 4.557." 
           },
-          probability: { type: Type.INTEGER },
-          impact: { type: Type.INTEGER },
+          probability: { type: Type.INTEGER, description: "Nota de 1 a 5 para probabilidade" },
+          impact: { type: Type.INTEGER, description: "Nota de 1 a 5 para impacto" },
           normativeCitation: { 
             type: Type.STRING, 
             description: "Citação específica de Artigo, Parágrafo ou Inciso da Resolução 4.557 (Ex: Art. 32, Inciso II)." 
@@ -68,6 +69,10 @@ export const analyzeOccurrence = async (
   rasPdfBase64?: string
 ) => {
   try {
+    if (!process.env.API_KEY) {
+      throw new Error("A chave de API (API_KEY) não foi detectada no servidor. Verifique as variáveis de ambiente.");
+    }
+
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const textPrompt = `ATUAÇÃO: Auditor Especialista em Riscos Integrados (GIR) - Conformidade Regulatória.
@@ -77,14 +82,14 @@ export const analyzeOccurrence = async (
     
     DIRETRIZES DE COMPLIANCE (BACEN 4.557):
     1. OBRIGATÓRIO: Justificar cada risco citando especificamente Artigos, Parágrafos ou Incisos da Resolução 4.557/2017.
-    2. EXAUSTIVIDADE: Analise todos os riscos transversais (Operacional, Liquidez, Reputacional, etc).
-    3. INTEGRIDADE: Se a RAS (inlineData) for fornecida, valide a conformidade com os limites de apetite nela descritos.
+    2. EXAUSTIVIDADE: Analise todos os riscos transversais.
+    3. INTEGRIDADE: Se a RAS for fornecida (via arquivo), valide a conformidade.
     4. FORMATAÇÃO: A citação normativa deve seguir o padrão: 'Conforme Art. X, § Y, Inciso Z'.`;
 
-    const contents: any[] = [{ text: textPrompt }];
+    const parts: any[] = [{ text: textPrompt }];
 
     if (rasPdfBase64) {
-      contents.push({
+      parts.push({
         inlineData: {
           mimeType: "application/pdf",
           data: rasPdfBase64
@@ -92,21 +97,34 @@ export const analyzeOccurrence = async (
       });
     }
 
+    // Uso do modelo PRO para maior precisão em tarefas complexas de conformidade
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: { parts: contents },
+      contents: [{ parts }],
       config: {
         responseMimeType: "application/json",
         responseSchema: analysisSchema,
-        temperature: 0.1 // Redução de criatividade para maior precisão normativa
+        temperature: 0.1,
+        thinkingConfig: { thinkingBudget: 0 }
       }
     });
 
-    return JSON.parse(response.text || "{}");
-  } catch (error: any) {
-    if (error.message?.includes("quota") || error.message?.includes("429")) {
-      throw new Error("QUOTA_EXCEEDED");
+    if (!response.text) {
+      throw new Error("Não foi possível obter uma resposta estruturada da IA.");
     }
-    throw error;
+
+    return JSON.parse(response.text);
+  } catch (error: any) {
+    console.error("Erro na análise Gemini:", error);
+    
+    if (error.message?.includes("API_KEY")) {
+      throw new Error("Erro de Configuração: API_KEY ausente no ambiente de hospedagem.");
+    }
+    
+    if (error.message?.includes("quota") || error.message?.includes("429")) {
+      throw new Error("Limite de requisições excedido. Tente novamente em alguns segundos.");
+    }
+    
+    throw new Error(error.message || "Erro na comunicação com o motor de IA.");
   }
 };
